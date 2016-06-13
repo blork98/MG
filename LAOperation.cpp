@@ -28,7 +28,7 @@ double vector_norm2(const std::vector<double>& vec1)
 	return result;
 }
 
-void vector_add(const std::vector<double>&& vec1,
+void vector_add(const std::vector<double>& vec1,
 	const std::vector<double>& vec2, std::vector<double>& result)
 {
 	assert(vec1.size() == vec2.size());
@@ -40,7 +40,7 @@ void vector_add(const std::vector<double>&& vec1,
 		result[i] = vec1[i] + vec2[i];
 }
 
-void vector_subtract(const std::vector<double>&& vec1,
+void vector_subtract(const std::vector<double>& vec1,
 	const std::vector<double>& vec2, std::vector<double>& result)
 {
 	assert(vec1.size() == vec2.size());

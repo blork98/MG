@@ -9,7 +9,7 @@
 class SparseLinearSolver
 {
 public:
-	virtual bool solve( std::vector<double>& sol ) const = 0;
+	virtual bool solve( std::vector<double>& sol ) = 0;
 	virtual void set_A(const std::shared_ptr<SparseMatrix>& A) = 0;
 	virtual void set_rhs(const std::shared_ptr<std::vector<double>>& b) = 0;
 };
@@ -19,12 +19,15 @@ class SparseIterativeLinearSolver : public SparseLinearSolver
 public:
 	SparseIterativeLinearSolver(int maxIters, double tolerance);
 
-	virtual bool solve(std::vector<double>& sol) const = 0;
+	virtual bool solve(std::vector<double>& sol) = 0;
 	virtual void set_A(const std::shared_ptr<SparseMatrix>& A);
 	virtual void set_rhs(const std::shared_ptr<std::vector<double>>& b);
 
+	void set_max_iters(int maxIters);
+	int num_iters() const;
+
 protected:
-	int maxIters_;
+	int maxIters_, numIters_;
 	double tolerance_;
 	std::shared_ptr<SparseMatrix> A_;
 	std::shared_ptr<std::vector<double>> rhs_;
@@ -37,21 +40,21 @@ class JacobiSolver : public SparseIterativeLinearSolver
 {
 public:
 	JacobiSolver( int maxIters, double tolerance );
-	bool solve( std::vector<double>& sol ) const;
+	bool solve( std::vector<double>& sol );
 };
 
 class GaussSeidelSolver : public SparseIterativeLinearSolver
 {
 public:
 	GaussSeidelSolver(int maxIters, double tolerance);
-	bool solve(std::vector<double>& sol) const;
+	bool solve(std::vector<double>& sol);
 };
 
 class SORSolver : public SparseIterativeLinearSolver
 {
 public:
 	SORSolver(int maxIters, double tolerance, double w, bool isSymmetric);
-	bool solve(std::vector<double>& sol) const;
+	bool solve(std::vector<double>& sol);
 
 	void set_w(double w);
 	void set_symmetric(bool isSymmetric);

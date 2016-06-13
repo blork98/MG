@@ -6,8 +6,18 @@
 
 SparseIterativeLinearSolver::SparseIterativeLinearSolver(int maxIters, double tolerance)
 	:maxIters_(maxIters), tolerance_(tolerance),
-	A_(nullptr), rhs_(nullptr)
+	A_(nullptr), rhs_(nullptr), numIters_(0)
 {
+}
+
+int SparseIterativeLinearSolver::num_iters() const
+{
+	return numIters_;
+}
+
+void SparseIterativeLinearSolver::set_max_iters(int maxIters)
+{
+	maxIters_ = maxIters;
 }
 
 void SparseIterativeLinearSolver::set_A(const std::shared_ptr<SparseMatrix>& A)
@@ -41,7 +51,7 @@ JacobiSolver::JacobiSolver( int maxIters, double tolerance )
 {
 }
 
-bool JacobiSolver::solve( std::vector<double>& sol ) const
+bool JacobiSolver::solve( std::vector<double>& sol )
 {
 
 	assert(A_ != nullptr);
@@ -62,27 +72,30 @@ bool JacobiSolver::solve( std::vector<double>& sol ) const
 	std::vector<double> diagElems(A_->rows(), 0.0);
 	A_->get_diagonals(diagElems);
 
-for (int iter = 1; iter <= maxIters_; ++iter)
-{
-	for (size_t i = 0; i < A_->rows(); ++i)
+	for (int iter = 1; iter <= maxIters_; ++iter)
 	{
-		(*solCurr)[i] = ((*rhs_)[i] -
-			(A_->vec_row_mult(i, *solPrev) - diagElems[i] * (*solPrev)[i]))
-			/ diagElems[i];
+		for (size_t i = 0; i < A_->rows(); ++i)
+		{
+			(*solCurr)[i] = ((*rhs_)[i] -
+				(A_->vec_row_mult(i, *solPrev) - diagElems[i] * (*solPrev)[i]))
+				/ diagElems[i];
+		}
+
+		//check for convergence
+		if (convergence_achieved(*solPrev, *solCurr))
+		{
+			if ((iter % 2) != 0)
+				sol = tempSol;
+			
+			numIters_ = iter;
+
+			return true;
+		}
+
+		std::swap(solCurr, solPrev);
 	}
 
-	//check for convergence
-	if (convergence_achieved(*solPrev, *solCurr))
-	{
-		if ((iter % 2) != 0)
-			sol = tempSol;
-		return true;
-	}
-
-	std::swap(solCurr, solPrev);
-}
-
-return false;
+	return false;
 }
 
 GaussSeidelSolver::GaussSeidelSolver(int maxIters, double tolerance)
@@ -90,7 +103,7 @@ GaussSeidelSolver::GaussSeidelSolver(int maxIters, double tolerance)
 {
 }
 
-bool GaussSeidelSolver::solve(std::vector<double>& sol) const
+bool GaussSeidelSolver::solve(std::vector<double>& sol)
 {
 	assert(A_ != nullptr);
 	assert(rhs_ != nullptr);
@@ -118,7 +131,10 @@ bool GaussSeidelSolver::solve(std::vector<double>& sol) const
 
 		//check for convergence
 		if (convergence_achieved(sol, prevSol))
+		{
+			numIters_ = iter;
 			return true;
+		}
 
 		prevSol = sol;
 
@@ -143,7 +159,7 @@ void SORSolver::set_symmetric(bool isSymmetric)
 	isSymmetric_ = isSymmetric;
 }
 
-bool SORSolver::solve(std::vector<double>& sol) const
+bool SORSolver::solve(std::vector<double>& sol)
 {
 	assert(A_ != nullptr);
 	assert(rhs_ != nullptr);
@@ -188,7 +204,10 @@ bool SORSolver::solve(std::vector<double>& sol) const
 		
 		//check for convergence
 		if (convergence_achieved(sol, prevSol))
+		{
+			numIters_ = iter;
 			return true;
+		}
 
 		prevSol = sol;
 	}

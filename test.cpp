@@ -161,6 +161,7 @@ void test_two_grid()
 	//global vars
 	int fineSweeps = 10000;
 	double tolerance = 0.0001;
+	double h = 1.0, scale = 1 / ((2 * h)*(2 * h));
 
 	//Create coarse grid matrix
 	std::vector<double> val1 = { 2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0 };
@@ -169,6 +170,7 @@ void test_two_grid()
 
 	size_t numRowsC = 5;
 	SparseMatrix coarse(numRowsC, numRowsC, val1, colInd1, rowPtr1);
+	coarse *= scale;
 	std::shared_ptr<SparseMatrix> coarseA = std::make_shared<SparseMatrix>(coarse);
 
 	//Create fine grid matrix
@@ -188,9 +190,7 @@ void test_two_grid()
 	//Create rhs
 	std::vector<double> fineRHS = {0.5,-1.0,2.0,0.0,-1.5,1.9,-1.1,1.5,-0.3};
 	std::vector<double> coarseRHS = {-0.1,-0.6,3.3,-0.6,0.8};
-	std::shared_ptr<std::vector<double>> fRHS, cRHS;
-	*cRHS = coarseRHS;
-	*fRHS = fineRHS;
+	std::shared_ptr<std::vector<double>> fRHS(&fineRHS), cRHS(&coarseRHS);
 
 	//solutions
 	std::vector<double> fineSol(fineRHS.size(),0.0);

@@ -107,18 +107,18 @@ bool TwoGridCorrection::solve(bool interiorPointsOnly,
 	vector_subtract(*rhs_, fineGridResid, fineGridResid);
 
 	//Apply Restriction Operator to fine grid residual 
-	I_->apply_operator(fineGridResid, coarseGridResidual);
+	std::shared_ptr<std::vector<double>> cGridRes;
+	cGridRes = std::make_shared<std::vector<double>>(coarseGridResidual.size(),0.0); //need to change
+
+	I_->apply_operator(fineGridResid, *cGridRes);
 
 	//Solve inner system
-	std::shared_ptr<std::vector<double>> cGridRes; 
-	*cGridRes = coarseGridResidual;
-
 	coarseGridSolver_->set_A(coarseA_);
 	coarseGridSolver_->set_rhs(cGridRes);
 	coarseGridSolver_->solve(coarseGridSol);
 
 	//Apply Interpolation Operator to coarse grid residual
-	I_->apply_operator(fineGridResid, coarseGridResidual);
+	I_->apply_operator(fineGridResid, coarseGridSol);
 
 	//Add residual to initial approx
 	vector_add(fineGridSol, fineGridResid, fineGridSol);
@@ -126,5 +126,14 @@ bool TwoGridCorrection::solve(bool interiorPointsOnly,
 	//Final Relaxation Swwp
 	fineGridSolver_->solve(fineGridSol);
 
-	return true;
+	//calculate final residual
+	fineA_->vec_multiply(fineGridSol, fineGridResid);
+	vector_subtract(*rhs_, fineGridResid, fineGridResid);
+
+	double error = vector_norm_2(fineGridResid);
+
+	if (error < 0.0001)
+		return true;
+
+	return false;
 }

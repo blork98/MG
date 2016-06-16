@@ -110,7 +110,7 @@ bool TwoGridCorrection::solve(bool interiorPointsOnly,
 	std::shared_ptr<std::vector<double>> cGridRes;
 	cGridRes = std::make_shared<std::vector<double>>(coarseGridResidual.size(),0.0); //need to change
 
-	I_->apply_operator(fineGridResid, *cGridRes);
+	R_->apply_operator(fineGridResid, *cGridRes);
 
 	//Solve inner system
 	coarseGridSolver_->set_A(coarseA_);

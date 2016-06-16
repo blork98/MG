@@ -17,7 +17,7 @@ double vector_dot_product(const std::vector<double>& vec1,
 	return result;
 }
 
-double vector_norm2(const std::vector<double>& vec1)
+double vector_norm_2(const std::vector<double>& vec1)
 {
 	double result = 0.0;
 

@@ -10,9 +10,10 @@ MultiGridSolver::MultiGridSolver(unsigned int numLevels, double tolerance,
 	const std::shared_ptr<InterpolationOperator>& I,
 	const std::shared_ptr<RestrictionOperator>& R)
 	: numLevels_(numLevels), tolerance_(tolerance), solvers_(solvers),
-	A_(numLevels, nullptr), rhs_(numLevels,nullptr), resids_(numLevels_),
+	A_(0, nullptr), rhs_(0,nullptr), resids_(numLevels_),
 	sols_(numLevels_), R_(R), I_(I)
 {
+	//resize_rhs_resids();
 }
 
 unsigned int MultiGridSolver::num_levels() const
@@ -35,17 +36,19 @@ void MultiGridSolver::set_ith_A(size_t i, const std::shared_ptr<SparseMatrix>& A
 }
 
 void MultiGridSolver::set_A(const std::vector<std::shared_ptr<SparseMatrix>>& A)
-{
-	A_ = A;
-	
-	if (numLevels_ != A_.size())
+{	
+	if (A.size() != A_.size() )
 	{
-		rhs_ = std::move(std::vector<std::shared_ptr<std::vector<double>>>(A_.size()));
-		resids_ = std::move(std::vector<std::vector<double>>(A.size()));
-		sols_ = std::move(std::vector<std::vector<double>>(A.size()));
+		A_ = A;
+		rhs_ = std::vector<std::shared_ptr<std::vector<double>>>(A_.size());
+		resids_ = std::vector<std::vector<double>>(A.size());
+		sols_ = std::vector<std::vector<double>>(A.size());
 		resize_rhs_resids();
 		numLevels_ = A_.size();
+	} else {
+		A_ = A;
 	}
+
 }
 
 void  MultiGridSolver::set_solvers(const std::vector<std::shared_ptr<SparseLinearSolver>>& solvers)
@@ -55,9 +58,13 @@ void  MultiGridSolver::set_solvers(const std::vector<std::shared_ptr<SparseLinea
 
 void MultiGridSolver::resize_rhs_resids()
 {
+	rhs_.resize(numLevels_);
+	resids_.resize(numLevels_);
+	sols_.resize(numLevels_);
+
 	for (size_t i = 1; i < A_.size(); ++i)
 	{
-		//rhs_[i] = std::move(std::vector<double>(A_[i]->cols(),0.0));
+		rhs_[i] = std::make_shared<std::vector<double>>(std::vector<double>(A_[i]->cols(),0.0));
 		resids_[i] = std::move(std::vector<double>(A_[i]->cols(),0.0));
 		sols_[i] = std::move(std::vector<double>(A_[i]->cols(), 0.0));
 	}

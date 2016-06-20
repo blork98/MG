@@ -20,7 +20,7 @@ bool MGSolverVCycle::solve(bool interiorPointsOnly, std::vector<double>& sol) co
 	sols_[0] = sol;
 
 	//down sweep
-	for (unsigned int level = 1; level < numLevels_; ++level)
+	for (unsigned int level = 0; level < (numLevels_-1); ++level)
 	{
 		//initial relaxation downsweeps
 		solvers_[level]->set_A(A_[level]);
@@ -41,9 +41,9 @@ bool MGSolverVCycle::solve(bool interiorPointsOnly, std::vector<double>& sol) co
 
 	//up sweep
 	unsigned int levelCtr = 0;
-	for (unsigned int level = 1; level < numLevels_; ++level)
+	for (unsigned int level = 0; level < (numLevels_-1); ++level) //error is here
 	{
-		levelCtr = numLevels_ - level;
+		levelCtr = numLevels_ - level - 1;
 
 		//apply interpolation operator
 		I_->apply_operator(resids_[levelCtr],sols_[levelCtr+1]);

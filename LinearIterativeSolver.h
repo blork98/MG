@@ -11,7 +11,7 @@ class SparseLinearSolver
 public:
 	virtual bool solve( std::vector<double>& sol ) = 0;
 	virtual void set_A(const std::shared_ptr<SparseMatrix>& A) = 0;
-	virtual void set_rhs(const std::shared_ptr<std::vector<double>>& b) = 0;
+	virtual void set_rhs(const std::shared_ptr<std::vector<double>>& b) = 0; //change this to pass by reference
 };
 
 class SparseIterativeLinearSolver : public SparseLinearSolver

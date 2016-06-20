@@ -82,3 +82,16 @@ void vector_axmy(double scalar, const std::vector<double>& vecMult,
 	for (size_t i = 0; i < vecMult.size(); ++i)
 		result[i] = scalar*vecMult[i] - vecMinus[i];
 }
+
+void calc_residual(const std::vector<double>& rhs, const std::vector<double>& sol,
+	const SparseMatrix& A, std::vector<double>& res)
+{
+	assert(rhs.size() == sol.size());
+	assert(A.cols() == rhs.size());
+
+	if (res.size() != sol.size())
+		res.resize(rhs.size(), 0.0);
+
+	A.vec_multiply(sol, res);
+	vector_subtract(rhs, res, res);
+}

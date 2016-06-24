@@ -20,7 +20,7 @@ bool MGSolverVCycle::solve(bool interiorPointsOnly, std::vector<double>& sol) co
 	sols_[0] = sol;
 
 	//down sweep
-	for (unsigned int level = 0; level < (numLevels_-1); ++level)
+	for (unsigned int level = 0; level < (numLevels_- 1); ++level)
 	{
 		//initial relaxation downsweeps
 		solvers_[level]->set_A(A_[level]);
@@ -31,7 +31,7 @@ bool MGSolverVCycle::solve(bool interiorPointsOnly, std::vector<double>& sol) co
 		calc_residual(*rhs_[level], sols_[level], *A_[level], resids_[level]);
 
 		//apply restriction operator
-		I_->apply_operator(resids_[level], *rhs_[level+1]);
+		R_->apply_operator(resids_[level], *rhs_[level+1]);
 	}
 
 	//Coarsest Level
@@ -43,7 +43,7 @@ bool MGSolverVCycle::solve(bool interiorPointsOnly, std::vector<double>& sol) co
 	unsigned int levelCtr = 0;
 	for (unsigned int level = 0; level < (numLevels_-1); ++level) //error is here
 	{
-		levelCtr = numLevels_ - level - 1;
+		levelCtr = numLevels_ - level - 2;
 
 		//apply interpolation operator
 		I_->apply_operator(resids_[levelCtr],sols_[levelCtr+1]);

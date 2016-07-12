@@ -48,6 +48,8 @@ bool FMGSolver::solve(bool interiorPointsOnly, std::vector<double>& sol) const
 		v_cycle(level);
 	}
 
+	sol = sols_[0];
+
 	//calculate final residual
 	calc_residual(*rhs_[0], sols_[0], *A_[0], resids_[0]);
 	double error = vector_norm_2(resids_[0]);
@@ -64,7 +66,7 @@ void FMGSolver::v_cycle(int start) const
 	int endLevel = numLevels_-1;
 
 	//down sweep
-	for (int level = startLevel; level < (numLevels_ - 1); ++startLevel)
+	for (int level = startLevel; level < (numLevels_ - 1); ++level)
 	{
 		//initial relaxation downsweeps
 		solvers_[level]->set_A(A_[level]);
@@ -84,7 +86,7 @@ void FMGSolver::v_cycle(int start) const
 	solvers_[numLevels_ - 1]->solve(sols_[numLevels_ - 1]);
 
 	//up sweep
-	for (int level = numLevels_ - 2; level >= 0; --level)
+	for (int level = numLevels_ - 2; level >= startLevel; --level)
 	{
 		//apply interpolation operator
 		I_->apply_operator(resids_[level], sols_[level + 1]);

@@ -5,6 +5,8 @@
 #include <LinearIterativeSolver.h>
 #include <GridOperators.h>
 #include <MGTwoGridCorrection.h>
+#include <MGVCycle.h>
+#include <FMG.h>
 
 #include <vector>
 #include <iostream>
@@ -159,7 +161,7 @@ void test_grid_operators()
 void test_two_grid()
 {
 	//global vars
-	int fineSweeps = 10000;
+	int fineSweeps = 10;
 	double tolerance = 0.0001;
 	double h = 1.0, scale = 1 / ((2 * h)*(2 * h));
 
@@ -190,7 +192,8 @@ void test_two_grid()
 	//Create rhs
 	std::vector<double> fineRHS = {0.5,-1.0,2.0,0.0,-1.5,1.9,-1.1,1.5,-0.3};
 	std::vector<double> coarseRHS = {-0.1,-0.6,3.3,-0.6,0.8};
-	std::shared_ptr<std::vector<double>> fRHS(&fineRHS), cRHS(&coarseRHS);
+	std::shared_ptr<std::vector<double>> fRHS = std::make_shared < std::vector<double>>(fineRHS),
+		cRHS = std::make_shared < std::vector<double>>(coarseRHS);
 
 	//solutions
 	std::vector<double> fineSol(fineRHS.size(),0.0);
@@ -205,8 +208,11 @@ void test_two_grid()
 	for (auto it = coarseSol.begin(); it != coarseSol.end(); ++it)
 		std::cout << *it << std::endl;
 	std::cout << "Num Iters:" << std::dynamic_pointer_cast<SparseIterativeLinearSolver>(coarseSolver)->num_iters() << std::endl;
+	*/
 
+	/*
 	//test solvers on fine matrix
+	fineSolver->set_max_iters(1000);
 	fineSolver->set_A(fineA);
 	fineSolver->set_rhs(fRHS);
 	fineSolver->solve(fineSol);
@@ -233,4 +239,139 @@ void test_two_grid()
 	for (auto it = fineSol.begin(); it != fineSol.end(); ++it)
 		std::cout << *it << std::endl;
 
+}
+
+void test_V_cycke()
+{
+	//global vars
+	int fineSweeps = 100;
+	unsigned int numLevels = 2;
+	double tolerance = 0.001;
+	double h = 1.0, scale1 = 1 / ((2 * h)*(2 * h));
+
+	//Create coarse grid matrix
+	std::vector<double> val1 = { 2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0 };
+	std::vector<unsigned int> colInd1 = { 0,1, 0,1,2, 1,2,3, 2,3,4, 3,4 };
+	std::vector<unsigned int> rowPtr1 = { 0,2,5,8,11,13 };
+
+	size_t numRowsC = 5;
+	SparseMatrix coarse(numRowsC, numRowsC, val1, colInd1, rowPtr1);
+	coarse *= scale1;
+	std::shared_ptr<SparseMatrix> coarseA = std::make_shared<SparseMatrix>(coarse);
+
+	//Create finest grid matrix
+	std::vector<double> val2 = { 2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0,
+		-1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0 };
+	std::vector<unsigned int> colInd2 = { 0,1, 0,1,2, 1,2,3, 2,3,4, 3,4,5, 4,5,6, 5,6,7, 6,7,8, 7,8 };
+	std::vector<unsigned int> rowPtr2 = { 0,2,5,8,11,14,17,20,23,25 };
+
+	size_t numRowsFine = 9;
+	SparseMatrix fine(numRowsFine, numRowsFine, val2, colInd2, rowPtr2);
+	std::shared_ptr<SparseMatrix> fineA = std::make_shared<SparseMatrix>(fine);
+
+	std::vector<std::shared_ptr<SparseMatrix>> A = { fineA, coarseA };
+
+	//Create Solvers
+	std::shared_ptr<SparseIterativeLinearSolver> fineSolver(new JacobiSolver(fineSweeps, tolerance));
+	std::shared_ptr<SparseLinearSolver> coarseSolver(new JacobiSolver(fineSweeps, tolerance));
+	std::vector<std::shared_ptr<SparseLinearSolver>> solvers = {fineSolver, coarseSolver};
+
+	//Create rhs
+	std::vector<double> fineRHS = { 0.5,-1.0,2.0,0.0,-1.5,1.9,-1.1,1.5,-0.3 };
+	std::shared_ptr<std::vector<double>> rhs = std::make_shared<std::vector<double>>(fineRHS);
+
+	//Declaret Interpolation, Restriction Operators
+	std::shared_ptr<RestrictionOperator> R = std::make_shared<FullWeighing1D>(FullWeighing1D());
+	std::shared_ptr<InterpolationOperator> I = std::make_shared<LinearInterpolation1D>(LinearInterpolation1D());
+
+	//create V cycle
+	MGSolverVCycle vCycleSolver(numLevels,tolerance, std::vector<unsigned int>(2,10), solvers, I, R);
+	vCycleSolver.set_A(A);
+	vCycleSolver.set_rhs(rhs);
+
+	std::vector<double> sol(numRowsFine, 0.0);
+	vCycleSolver.solve(false, sol);
+
+	std::cout << "Test V Cycle MG" << std::endl;
+	for (auto it = sol.begin(); it != sol.end(); ++it)
+		std::cout << *it << std::endl;
+}
+
+void test_fmg()
+{
+	//global vars
+	int fineSweeps = 100;
+	unsigned int numLevels = 3;
+	double tolerance = 0.001;
+	double h = 1.0, scale1 = 1 / ((2 * h)*(2 * h)), scale2 = 1 / ((4 * h)*(4 * h));
+
+	//Create coarse grid matrix
+	std::vector<double> val = { 2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0 };
+	std::vector<unsigned int> colInd = { 0,1,  0,1,2, 1,2};
+	std::vector<unsigned int> rowPtr = { 0,2,5,7};
+
+	size_t numRowsC = 3;
+	SparseMatrix coarse(numRowsC, numRowsC, val, colInd, rowPtr);
+	//coarse *= scale2;
+	std::shared_ptr<SparseMatrix> coarseA = std::make_shared<SparseMatrix>(coarse);
+
+	//Create middle matrix
+	std::vector<double> val1 = { 2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0 };
+	std::vector<unsigned int> colInd1 = { 0,1, 0,1,2, 1,2,3, 2,3,4, 3,4 };
+	std::vector<unsigned int> rowPtr1 = { 0,2,5,8,11,13 };
+
+	size_t numRowsM = 5;
+	SparseMatrix middle(numRowsM, numRowsM, val1, colInd1, rowPtr1);
+	middle *= scale1;
+	std::shared_ptr<SparseMatrix> middleA = std::make_shared<SparseMatrix>(middle);
+
+	//Create finest grid matrix
+	std::vector<double> val2 = { 2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0,-1.0,
+		-1.0,2.0,-1.0, -1.0,2.0,-1.0, -1.0,2.0 };
+	std::vector<unsigned int> colInd2 = { 0,1, 0,1,2, 1,2,3, 2,3,4, 3,4,5, 4,5,6, 5,6,7, 6,7,8, 7,8 };
+	std::vector<unsigned int> rowPtr2 = { 0,2,5,8,11,14,17,20,23,25 };
+
+	size_t numRowsFine = 9;
+	SparseMatrix fine(numRowsFine, numRowsFine, val2, colInd2, rowPtr2);
+	std::shared_ptr<SparseMatrix> fineA = std::make_shared<SparseMatrix>(fine);
+
+	std::vector<std::shared_ptr<SparseMatrix>> A = { fineA, middleA, coarseA };
+
+	//Create Solvers
+	std::shared_ptr<SparseIterativeLinearSolver> fineSolver(new JacobiSolver(fineSweeps, tolerance));
+	std::shared_ptr<SparseIterativeLinearSolver> middleSolver(new JacobiSolver(fineSweeps, tolerance));
+	std::shared_ptr<SparseLinearSolver> coarseSolver(new JacobiSolver(fineSweeps, tolerance));
+	std::vector<std::shared_ptr<SparseLinearSolver>> solvers = { fineSolver, middleSolver, coarseSolver };
+	/*
+	//test solvers on coarse matrix
+	std::vector<double> coarseSol(3, 0.0), crhs = {0.0,0.0,4.0};
+	std::shared_ptr<std::vector<double>> cRHS = std::make_shared<std::vector<double>>(crhs);
+	coarseSolver->set_A(coarseA);
+	coarseSolver->set_rhs(cRHS);
+	coarseSolver->solve(coarseSol);
+	std::cout << "Test Coarse Grid Matrix" << std::endl;
+	for (auto it = coarseSol.begin(); it != coarseSol.end(); ++it)
+		std::cout << *it << std::endl;
+	std::cout << "Num Iters:" << std::dynamic_pointer_cast<SparseIterativeLinearSolver>(coarseSolver)->num_iters() << std::endl;
+	*/
+
+	//Create rhs
+	std::vector<double> fineRHS = { 0.5,-1.0,2.0,0.0,-1.5,1.9,-1.1,1.5,-0.3 };
+	std::shared_ptr<std::vector<double>> rhs = std::make_shared<std::vector<double>>(fineRHS);
+
+	//Declaret Interpolation, Restriction Operators
+	std::shared_ptr<RestrictionOperator> R = std::make_shared<FullWeighing1D>(FullWeighing1D());
+	std::shared_ptr<InterpolationOperator> I = std::make_shared<LinearInterpolation1D>(LinearInterpolation1D());
+
+	//create FMG 
+	FMGSolver fmgSolver(numLevels, tolerance, std::vector<unsigned int>(2, 10), solvers, I, R);
+	fmgSolver.set_A(A);
+	fmgSolver.set_rhs(rhs);
+
+	std::vector<double> sol(numRowsFine, 0.0);
+	fmgSolver.solve(false, sol);
+
+	std::cout << "Test FMG" << std::endl;
+	for (auto it = sol.begin(); it != sol.end(); ++it)
+		std::cout << *it << std::endl;
 }

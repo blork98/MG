@@ -214,3 +214,109 @@ bool SORSolver::solve(std::vector<double>& sol)
 
 	return false;
 }
+
+WeightedJacobiSolver::WeightedJacobiSolver(int maxIters, double tolerance, double w)
+	: SparseIterativeLinearSolver(maxIters, tolerance), w_(w)
+{
+}
+
+bool WeightedJacobiSolver::solve(std::vector<double>& sol)
+{
+	assert(A_ != nullptr);
+	assert(rhs_ != nullptr);
+
+	if (sol.size() != rhs_->size())
+		sol.resize(rhs_->size());
+
+	if (A_->cols() != rhs_->size())
+		return false;
+
+	double result = 0.0;
+	std::vector<double> tempSol(sol.size(), 0.0);
+	std::vector<double> *solCurr, *solPrev;
+	solPrev = &sol;
+	solCurr = &tempSol;
+
+	std::vector<double> diagElems(A_->rows(), 0.0);
+	A_->get_diagonals(diagElems);
+
+	for (int iter = 1; iter <= maxIters_; ++iter)
+	{
+		for (size_t i = 0; i < A_->rows(); ++i)
+		{
+			(*solCurr)[i] = ((*rhs_)[i] -
+				(A_->vec_row_mult(i, *solPrev) - diagElems[i] * (*solPrev)[i]))
+				/ diagElems[i];
+			(*solCurr)[i] = w_*(*solCurr)[i] + (1 - w_)*((*solPrev)[i]);
+		}
+
+		//check for convergence
+		if (convergence_achieved(*solPrev, *solCurr))
+		{
+			if ((iter % 2) != 0)
+				sol = tempSol;
+
+			numIters_ = iter;
+
+			return true;
+		}
+
+		std::swap(solCurr, solPrev);
+	}
+
+	return false;
+}
+
+RedBlackGaussSeidelSolver::RedBlackGaussSeidelSolver(int maxIters, double tolerance)
+	:SparseIterativeLinearSolver(maxIters, tolerance)
+{
+}
+
+bool RedBlackGaussSeidelSolver::solve(std::vector<double>& sol)
+{
+	assert(A_ != nullptr);
+	assert(rhs_ != nullptr);
+
+	if (sol.size() != rhs_->size())
+		sol.resize(rhs_->size());
+
+	if (A_->cols() != rhs_->size())
+		return false;
+
+	std::vector<double> diagElems(A_->rows(), 0.0);
+	A_->get_diagonals(diagElems);
+
+	std::vector<double> prevSol = sol;
+
+	for (int iter = 1; iter <= maxIters_; ++iter)
+	{
+
+		//update Red Nodes (Even)
+		for (size_t i = 0; i < A_->rows(); i+=2)
+		{
+			sol[i] = ((*rhs_)[i] -
+				(A_->vec_row_mult(i, sol) - diagElems[i] * sol[i]))
+				/ diagElems[i];
+		}
+
+		//update Black Nodes (Odd)
+		for (size_t i = 1; i < A_->rows(); i += 2)
+		{
+			sol[i] = ((*rhs_)[i] -
+				(A_->vec_row_mult(i, sol) - diagElems[i] * sol[i]))
+				/ diagElems[i];
+		}
+
+		//check for convergence
+		if (convergence_achieved(sol, prevSol))
+		{
+			numIters_ = iter;
+			return true;
+		}
+
+		prevSol = sol;
+
+	}
+
+	return false;
+}

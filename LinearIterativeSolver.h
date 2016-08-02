@@ -43,10 +43,27 @@ public:
 	bool solve( std::vector<double>& sol );
 };
 
+class WeightedJacobiSolver : public SparseIterativeLinearSolver
+{
+public:
+	WeightedJacobiSolver(int maxIters, double tolerance, double w);
+	bool solve(std::vector<double>& sol);
+
+private:
+	double w_;
+};
+
 class GaussSeidelSolver : public SparseIterativeLinearSolver
 {
 public:
 	GaussSeidelSolver(int maxIters, double tolerance);
+	bool solve(std::vector<double>& sol);
+};
+
+class RedBlackGaussSeidelSolver : public SparseIterativeLinearSolver
+{
+public:
+	RedBlackGaussSeidelSolver(int maxIters, double tolerance);
 	bool solve(std::vector<double>& sol);
 };
 
